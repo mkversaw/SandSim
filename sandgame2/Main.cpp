@@ -5,14 +5,18 @@
 #include <vector>
 #include <cstring>
 
+bool inBounds(int x, int y);
+
+const unsigned int width = 600;
+const unsigned int height = 600;
+
 int main(int argc, char** argv) {
     SDL_Init(SDL_INIT_EVERYTHING);
-    
     SDL_Window* window = SDL_CreateWindow
     (
         "sandgame2",
         SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, // initial window position
-        600, 600,
+        width, height,
         SDL_WINDOW_SHOWN
     );
     
@@ -23,17 +27,15 @@ int main(int argc, char** argv) {
         SDL_RENDERER_ACCELERATED // use hardware acceleration
     );
     
-    const unsigned int texWidth = 600;
-    const unsigned int texHeight = 600;
     SDL_Texture* texture = SDL_CreateTexture
     (
         renderer,
         SDL_PIXELFORMAT_ARGB8888,
         SDL_TEXTUREACCESS_STREAMING,
-        texWidth, texHeight
+        width, height
     );
     
-    std::vector< unsigned char > pixels(texWidth * texHeight * 4, 0);
+    std::vector< unsigned char > pixels(width * height * 4, 0);
     const int br_size = 9;
 
     SDL_Event event;
@@ -74,15 +76,18 @@ int main(int argc, char** argv) {
                     unsigned char col_r = rand() % 256;
                     unsigned char col_g = rand() % 256;
                     unsigned char col_b = rand() % 256;
-                    unsigned char col_opacity = SDL_ALPHA_OPAQUE;
+                    unsigned char col_o = SDL_ALPHA_OPAQUE;
 
                     for (int br_x = m_x - br_size; br_x < m_x + br_size; br_x++) {
                         for (int br_y = m_y - br_size; br_y < m_y + br_size; br_y++) {
-                            const unsigned int offset = (texWidth * 4 * br_y) + br_x * 4;
-                            pixels[offset + 0] = col_b;        // b
-                            pixels[offset + 1] = col_g;        // g
-                            pixels[offset + 2] = col_r;        // r
-                            pixels[offset + 3] = col_opacity;    // a
+                            if(inBounds(br_x,br_y)) {
+                                const unsigned int offset = (width * 4 * br_y) + br_x * 4;
+                                pixels[offset + 0] = col_b;          // b
+                                pixels[offset + 1] = col_g;          // g
+                                pixels[offset + 2] = col_r;          // r
+                                pixels[offset + 3] = col_o;          // o
+                            }
+
                         }
                     }
                 }
@@ -96,7 +101,7 @@ int main(int argc, char** argv) {
             texture,
             NULL,
             pixels.data(),
-            texWidth * 4
+            width * 4
         );
         
         SDL_RenderCopy(renderer, texture, NULL, NULL);
@@ -124,4 +129,8 @@ int main(int argc, char** argv) {
     SDL_Quit();
 
     return 0;
+}
+
+bool inBounds(int x, int y) {
+    return x >= 0 && y >= 0 && x < 600 && y < 600;
 }
