@@ -34,7 +34,8 @@ int main(int argc, char** argv) {
     );
     
     std::vector< unsigned char > pixels(texWidth * texHeight * 4, 0);
-    
+    const int br_size = 9;
+
     SDL_Event event;
     bool running = true;
     
@@ -58,8 +59,7 @@ int main(int argc, char** argv) {
             int m_x, m_y;
             Uint32 mouse_state = SDL_GetMouseState(&m_x, &m_y); // get mouse position
 
-            switch (event.type)
-            {
+            switch (event.type) {
             case SDL_QUIT:
                 break;
             case SDL_MOUSEBUTTONUP:
@@ -70,16 +70,21 @@ int main(int argc, char** argv) {
                 if (event.button.button == SDL_BUTTON_LEFT)
                     leftMouseButtonDown = true;
             case SDL_MOUSEMOTION:
-                if (leftMouseButtonDown)
-                {
-                    const unsigned int x = m_x;
-                    const unsigned int y = m_y;
+                if (leftMouseButtonDown) {
+                    unsigned char col_r = rand() % 256;
+                    unsigned char col_g = rand() % 256;
+                    unsigned char col_b = rand() % 256;
+                    unsigned char col_opacity = SDL_ALPHA_OPAQUE;
 
-                    const unsigned int offset = (texWidth * 4 * y) + x * 4;
-                    pixels[offset + 0] = rand() % 256;        // b
-                    pixels[offset + 1] = rand() % 256;        // g
-                    pixels[offset + 2] = rand() % 256;        // r
-                    pixels[offset + 3] = SDL_ALPHA_OPAQUE;    // a
+                    for (int br_x = m_x - br_size; br_x < m_x + br_size; br_x++) {
+                        for (int br_y = m_y - br_size; br_y < m_y + br_size; br_y++) {
+                            const unsigned int offset = (texWidth * 4 * br_y) + br_x * 4;
+                            pixels[offset + 0] = col_b;        // b
+                            pixels[offset + 1] = col_g;        // g
+                            pixels[offset + 2] = col_r;        // r
+                            pixels[offset + 3] = col_opacity;    // a
+                        }
+                    }
                 }
                 break;
             }
