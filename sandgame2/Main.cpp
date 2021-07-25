@@ -26,9 +26,14 @@ struct pix {
 
 bool inBounds(int x, int y);
 bool isFree(int x, int y);
+void frameCounter(unsigned int& frame, Uint64& startTime);
+void deletePixel(int x, int y);
+void drawPixel(int x, int y);
+void moveSimple(int x, int y);
 
 const unsigned int width = 256;
 const unsigned int height = 256;
+bool left, right;
 
 std::vector< unsigned char > pixels(width * height * 4, 0);
 std::vector<std::vector<pix>> pixs(width, std::vector<pix>(height));
@@ -132,72 +137,33 @@ int main(int argc, char** argv) {
 
 		}
 		
-		for (int i = width-1; i > 0; i--) {
+		for (int i = width - 1; i > 0; i--) {
 			choice = (rand() % 2) == 1;
-			for (int j = height-1; j > 0; j--) {
-				if (!pixs[i][j].visited && !pixs[i][j].empty) { // not visited yet
-					pixs[i][j].visited = true;
-					
-					if (isFree(i, j + 1)) {
-						pixs[i][j + 1] = pixs[i][j];
-						pixs[i][j].empty = true;
-						pixs[i][j].col_r = 0;
-						pixs[i][j].col_b = 0;
-						pixs[i][j].col_g = 0;
-						continue;
-					}
-					
-					bool left = isFree(i - 1, j + 1);
-					bool right = isFree(i + 1, j + 1);
-
-					if (left && right) { // pick one
-						
-						if (choice) {
-							left = false;
-						}
-						else {
-							right = false;
-						}
-
-					}
-
-
-					if (left) {
-						pixs[i - 1][j + 1] = pixs[i][j];
-						pixs[i][j].empty = true;
-						pixs[i][j].col_r = 0;
-						pixs[i][j].col_b = 0;
-						pixs[i][j].col_g = 0;
-					}
-					else if (right) {
-						pixs[i + 1][j + 1] = pixs[i][j];
-						pixs[i][j].empty = true;
-						pixs[i][j].col_r = 0;
-						pixs[i][j].col_b = 0;
-						pixs[i][j].col_g = 0;
-					}
+			for (int j = height - 1; j > 0; j--) {
+				if (!pixs[i][j].visited && !pixs[i][j].empty) { // not visited yet				
+					moveSimple(i, j);
+					continue;
 				}
 
-				unsigned int offset = (width * 4 * j) + i * 4; // update the pixels to draw
-				pixels[offset + 0] = pixs[i][j].col_b;          // b
-				pixels[offset + 1] = pixs[i][j].col_g;          // g
-				pixels[offset + 2] = pixs[i][j].col_r;          // r
-				pixs[i][j].visited = false;
+				drawPixel(i, j);
 				
 			}
 		}
-		
-		//unsigned char* lockedPixels = nullptr;
-		//int pitch = 0;
-		//SDL_LockTexture
-		//(
-		//	texture,
-		//	NULL,
-		//	reinterpret_cast<void**>(&lockedPixels),
-		//	&pitch
-		//);
-		//std::memcpy(lockedPixels, pixels.data(), pixels.size());
-		//SDL_UnlockTexture(texture);
+
+		//for (int i = 0; i < width; i++) {
+		//	for (int j = 0; j < height; j++) {
+		//		if (pixs[i][j].visited && pixs[i][j].empty) {
+		//			pixs[i][j].empty = false;
+		//			pixs[i][j].col_b = 0;
+		//			pixs[i][j].col_g = 0;
+		//			pixs[i][j].col_r = 255;
+		//			unsigned int offset = (width * 4 * j) + i * 4;  // update the pixels to draw
+		//			pixels[offset + 0] = pixs[i][j].col_b;          // b
+		//			pixels[offset + 1] = pixs[i][j].col_g;          // g
+		//			pixels[offset + 2] = pixs[i][j].col_r;          // r
+		//		}
+		//	}
+		//}
 
 		SDL_UpdateTexture
 		(
@@ -210,21 +176,8 @@ int main(int argc, char** argv) {
 		SDL_RenderCopy(renderer, texture, NULL, NULL);
 		SDL_RenderPresent(renderer);
 
-		frames++;
-		const Uint64 end = SDL_GetPerformanceCounter();
-		const static Uint64 freq = SDL_GetPerformanceFrequency();
-		const double seconds = (end - start) / static_cast<double>(freq);
-		if (seconds > 2.0)
-		{
-			std::cout
-				<< frames << " frames in "
-				<< std::setprecision(1) << std::fixed << seconds << " seconds = "
-				<< std::setprecision(1) << std::fixed << frames / seconds << " FPS ("
-				<< std::setprecision(3) << std::fixed << (seconds * 1000.0) / frames << " ms/frame)"
-				<< std::endl;
-			start = end;
-			frames = 0;
-		}
+		frameCounter(frames, start);
+
 	}
 
 	SDL_DestroyRenderer(renderer);
@@ -242,4 +195,61 @@ bool isFree(int x, int y) {
 
 bool inBounds(int x, int y) {
 	return x >= 0 && y >= 0 && x < width && y < height;
+}
+
+void frameCounter(unsigned int& frame, Uint64& startTime) {
+	frame++;
+	const Uint64 end = SDL_GetPerformanceCounter();
+	const static Uint64 freq = SDL_GetPerformanceFrequency();
+	const double seconds = (end - startTime) / static_cast<double>(freq);
+	if (seconds > 2.0) {
+		std::cout
+			<< frame << " frames in "
+			<< std::setprecision(1) << std::fixed << seconds << " seconds = "
+			<< std::setprecision(1) << std::fixed << frame / seconds << " FPS ("
+			<< std::setprecision(3) << std::fixed << (seconds * 1000.0) / frame << " ms/frame)"
+			<< std::endl;
+		startTime = end;
+		frame = 0;
+	}
+}
+
+void deletePixel(int x, int y) { // NOTE: does not actually delete the pixel
+	pixs[x][y].empty = true;
+	pixs[x][y].col_r = 0;
+	pixs[x][y].col_b = 0;
+	pixs[x][y].col_g = 0;
+}
+
+void drawPixel(int x, int y) {
+	unsigned int offset = (width * 4 * y) + x * 4;  // update the pixels to draw
+	pixels[offset + 0] = pixs[x][y].col_b;          // b
+	pixels[offset + 1] = pixs[x][y].col_g;          // g
+	pixels[offset + 2] = pixs[x][y].col_r;          // r
+	pixs[x][y].visited = false;
+}
+
+void moveSimple(int x, int y) {
+	pixs[x][y].visited = true;
+	if (isFree(x, y + 1)) {
+		pixs[x][y + 1] = pixs[x][y];
+		deletePixel(x, y);
+		return;
+	}
+
+	left = isFree(x - 1, y + 1);
+	right = isFree(x + 1, y + 1);
+
+	if (left && right) { // pick one
+		choice ? right = false : left = false;
+	}
+
+	if (left) {
+		pixs[x - 1][y + 1] = pixs[x][y];
+		deletePixel(x, y);
+	}
+	else if (right) {
+		pixs[x + 1][y + 1] = pixs[x][y];
+		deletePixel(x, y);
+	}
 }
