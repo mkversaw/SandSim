@@ -9,7 +9,6 @@ struct pix {
 	unsigned char col_r;
 	unsigned char col_g;
 	unsigned char col_b;
-	unsigned char col_o;
 
 	bool empty;
 	bool visited;
@@ -18,7 +17,6 @@ struct pix {
 		col_r = 0;
 		col_g = 0;
 		col_b = 0;
-		col_o = 0;
 
 		empty = true;
 		visited = false;
@@ -29,13 +27,13 @@ struct pix {
 bool inBounds(int x, int y);
 bool isFree(int x, int y);
 
-const unsigned int width = 600;
-const unsigned int height = 600;
+const unsigned int width = 256;
+const unsigned int height = 256;
 
-std::vector< unsigned char > pixels(width* height * 4, 0);
+std::vector< unsigned char > pixels(width * height * 4, 0);
 std::vector<std::vector<pix>> pixs(width, std::vector<pix>(height));
 
-
+bool choice = false;
 
 int main(int argc, char** argv) {
 	SDL_Init(SDL_INIT_EVERYTHING);
@@ -43,7 +41,7 @@ int main(int argc, char** argv) {
 	(
 		"sandgame2",
 		SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, // initial window position
-		width, height,
+		512, 512,
 		SDL_WINDOW_SHOWN
 	);
 	
@@ -71,14 +69,13 @@ int main(int argc, char** argv) {
 	const int br_size = 9;
 
 	SDL_Event event;
-	bool running = true;
-	
+	bool running = true;	
 	bool leftMouseButtonDown = false;
 
+	unsigned int frames = 0;
+	Uint64 start = SDL_GetPerformanceCounter();
+
 	while (running) {
-	
-		SDL_SetRenderDrawColor(renderer, 0, 0, 0, SDL_ALPHA_OPAQUE);
-		SDL_RenderClear(renderer);
 	
 		while (SDL_PollEvent(&event)) {
 			if ((SDL_QUIT == event.type) ||
@@ -100,28 +97,29 @@ int main(int argc, char** argv) {
 			case SDL_MOUSEBUTTONDOWN:
 				if (event.button.button == SDL_BUTTON_LEFT)
 					leftMouseButtonDown = true;
+				else if (event.button.button == SDL_BUTTON_RIGHT) { // clear the canvas
+					for (int i = 0; i < width; i++) {
+						for (int j = 0; j < height; j++) {
+							pixs[i][j] = pix();
+						}
+					}
+				}
 			case SDL_MOUSEMOTION:
 				if (leftMouseButtonDown) {
 					unsigned char col_r = rand() % 256;
 					unsigned char col_g = rand() % 256;
 					unsigned char col_b = rand() % 256;
-					unsigned char col_o = SDL_ALPHA_OPAQUE;
+
+					m_x /= 2;
+					m_y /= 2;
 
 					for (int br_x = m_x - br_size; br_x < m_x + br_size; br_x++) {
 						for (int br_y = m_y - br_size; br_y < m_y + br_size; br_y++) {
 							if (inBounds(br_x, br_y) && pixs[br_x][br_y].empty) {
-								const unsigned int offset = (width * 4 * br_y) + br_x * 4;
-								pixels[offset + 0] = col_b;          // b
-								pixels[offset + 1] = col_g;          // g
-								pixels[offset + 2] = col_r;          // r
-								pixels[offset + 3] = col_o;          // o
-
 								pixs[br_x][br_y].empty = false;
 								pixs[br_x][br_y].col_r = col_r;
 								pixs[br_x][br_y].col_g = col_g;
 								pixs[br_x][br_y].col_b = col_b;
-								pixs[br_x][br_y].col_o = col_o;
-
 							}
 						}
 					}
@@ -134,39 +132,72 @@ int main(int argc, char** argv) {
 
 		}
 		
-		for (int i = 0; i < width; i++) {
-			for (int j = 0; j < height; j++) {
-				if (!pixs[i][j].visited) { // not visited yet
+		for (int i = width-1; i > 0; i--) {
+			choice = (rand() % 2) == 1;
+			for (int j = height-1; j > 0; j--) {
+				if (!pixs[i][j].visited && !pixs[i][j].empty) { // not visited yet
 					pixs[i][j].visited = true;
+					
+					if (isFree(i, j + 1)) {
+						pixs[i][j + 1] = pixs[i][j];
+						pixs[i][j].empty = true;
+						pixs[i][j].col_r = 0;
+						pixs[i][j].col_b = 0;
+						pixs[i][j].col_g = 0;
+						continue;
+					}
+					
+					bool left = isFree(i - 1, j + 1);
+					bool right = isFree(i + 1, j + 1);
 
-					bool down = isFree(i, j + 1);
-					bool left = isFree(i - 1, j);
-					bool right = isFree(i + 1, j);
-
-					if (inBounds(i,j + 1)) { // is a legal position
-						if (pixs[i][j].empty == false && pixs[i][j + 1].empty == true) { // is not occupied
-							pixs[i][j + 1] = pixs[i][j];		
-							pixs[i][j].empty = true;
-							pixs[i][j].col_r = 0;          // b
-							pixs[i][j].col_b = 0;          // g
-							pixs[i][j].col_g = 0;          // r
-							pixs[i][j].col_o = 255;        // o
+					if (left && right) { // pick one
+						
+						if (choice) {
+							left = false;
 						}
+						else {
+							right = false;
+						}
+
+					}
+
+
+					if (left) {
+						pixs[i - 1][j + 1] = pixs[i][j];
+						pixs[i][j].empty = true;
+						pixs[i][j].col_r = 0;
+						pixs[i][j].col_b = 0;
+						pixs[i][j].col_g = 0;
+					}
+					else if (right) {
+						pixs[i + 1][j + 1] = pixs[i][j];
+						pixs[i][j].empty = true;
+						pixs[i][j].col_r = 0;
+						pixs[i][j].col_b = 0;
+						pixs[i][j].col_g = 0;
 					}
 				}
-				pixs[i][j].visited = false;
-			}
-		}
 
-		for (int i = 0; i < width; i++) { // update the actual drawn pixels
-			for (int j = 0; j < height; j++) {
-				const unsigned int offset = (width * 4 * j) + i * 4;
+				unsigned int offset = (width * 4 * j) + i * 4; // update the pixels to draw
 				pixels[offset + 0] = pixs[i][j].col_b;          // b
 				pixels[offset + 1] = pixs[i][j].col_g;          // g
 				pixels[offset + 2] = pixs[i][j].col_r;          // r
-				pixels[offset + 3] = pixs[i][j].col_o;          // o
+				pixs[i][j].visited = false;
+				
 			}
 		}
+		
+		//unsigned char* lockedPixels = nullptr;
+		//int pitch = 0;
+		//SDL_LockTexture
+		//(
+		//	texture,
+		//	NULL,
+		//	reinterpret_cast<void**>(&lockedPixels),
+		//	&pitch
+		//);
+		//std::memcpy(lockedPixels, pixels.data(), pixels.size());
+		//SDL_UnlockTexture(texture);
 
 		SDL_UpdateTexture
 		(
@@ -179,6 +210,21 @@ int main(int argc, char** argv) {
 		SDL_RenderCopy(renderer, texture, NULL, NULL);
 		SDL_RenderPresent(renderer);
 
+		frames++;
+		const Uint64 end = SDL_GetPerformanceCounter();
+		const static Uint64 freq = SDL_GetPerformanceFrequency();
+		const double seconds = (end - start) / static_cast<double>(freq);
+		if (seconds > 2.0)
+		{
+			std::cout
+				<< frames << " frames in "
+				<< std::setprecision(1) << std::fixed << seconds << " seconds = "
+				<< std::setprecision(1) << std::fixed << frames / seconds << " FPS ("
+				<< std::setprecision(3) << std::fixed << (seconds * 1000.0) / frames << " ms/frame)"
+				<< std::endl;
+			start = end;
+			frames = 0;
+		}
 	}
 
 	SDL_DestroyRenderer(renderer);
@@ -189,9 +235,11 @@ int main(int argc, char** argv) {
 }
 
 bool isFree(int x, int y) {
+	if ( rand() % 25 == 1)
+		return inBounds(x, y) && pixs[x][y].empty && !pixs[x][y].visited;
 	return inBounds(x, y) && pixs[x][y].empty;
 }
 
 bool inBounds(int x, int y) {
-	return x >= 0 && y >= 0 && x < 600 && y < 600;
+	return x >= 0 && y >= 0 && x < width && y < height;
 }
